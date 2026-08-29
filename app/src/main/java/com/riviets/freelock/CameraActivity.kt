@@ -32,7 +32,6 @@ import com.google.mlkit.vision.pose.accurate.AccuratePoseDetectorOptions
 import kotlin.math.abs
 import kotlin.math.atan2
 
-// Клас для передачі даних про скелет в інтерфейс
 data class PoseState(val pose: Pose, val imageWidth: Int, val imageHeight: Int)
 
 class CameraActivity : ComponentActivity() {
@@ -57,7 +56,8 @@ fun CameraScreen(onExit: () -> Unit) {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
     }
     var pushupCount by remember { mutableIntStateOf(0) }
-    var currentPoseState by remember { mutableStateOf<PoseState?>(null) } // Зберігаємо стан скелета
+    var currentPoseState by remember { mutableStateOf<PoseState?>(null) }
+    var zoomRatio by remember { mutableFloatStateOf(1f) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -71,32 +71,31 @@ fun CameraScreen(onExit: () -> Unit) {
     if (hasCameraPermission) {
         Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
 
-            // Камера та Аналізатор
             CameraPreview(
+                zoomRatio = zoomRatio,
                 onPushup = {
                     pushupCount++
                     val secondsEarned = (settings.getUnlockTime() * 60).toLong()
                     settings.addEarnedTime(secondsEarned)
                 },
                 onPoseDetected = { poseState ->
-                    currentPoseState = poseState // Оновлюємо скелет
+                    currentPoseState = poseState
                 }
             )
 
-            // Малюємо скелет поверх відео
             currentPoseState?.let { poseState ->
                 DrawSkeleton(poseState)
             }
 
-            // Інтерфейс лічильника
+            // Інтерфейс лічильника (змістив трохи вліво для горизонтального режиму)
             Column(
-                modifier = Modifier.align(Alignment.TopCenter).padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier.align(Alignment.TopStart).padding(32.dp),
+                horizontalAlignment = Alignment.Start
             ) {
                 Text(
                     text = "Віджимань: $pushupCount",
                     style = MaterialTheme.typography.displayMedium,
-                    color = Color.Green // Зробив зеленим, щоб краще було видно на тлі камери
+                    color = Color.Green
                 )
                 Text(
                     text = "Зароблено: ${pushupCount * (settings.getUnlockTime() * 60).toInt()} сек",
@@ -105,9 +104,28 @@ fun CameraScreen(onExit: () -> Unit) {
                 )
             }
 
+            // Блок управління зумом (праворуч)
+            Column(
+                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                listOf(0.6f, 1f, 2f).forEach { zoom ->
+                    Button(
+                        onClick = { zoomRatio = zoom },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (zoomRatio == zoom) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+                        ),
+                        modifier = Modifier.size(64.dp),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text("${zoom}x")
+                    }
+                }
+            }
+
             Button(
                 onClick = onExit,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(32.dp).fillMaxWidth()
+                modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp).width(300.dp)
             ) {
                 Text("Завершити тренування")
             }
@@ -120,7 +138,6 @@ fun CameraScreen(onExit: () -> Unit) {
     }
 }
 
-// Компонент малювання ліній по кістках
 @Composable
 fun DrawSkeleton(poseState: PoseState) {
     val pose = poseState.pose
@@ -129,19 +146,12 @@ fun DrawSkeleton(poseState: PoseState) {
         val canvasWidth = size.width
         val canvasHeight = size.height
 
-        // Функції для переведення координат ML Kit у координати екрана смартфона
-        fun scaleX(x: Float): Float {
-            val scaled = x * canvasWidth / poseState.imageWidth
-            return canvasWidth - scaled // Дзеркалимо по осі X для фронтальної камери
-        }
+        fun scaleX(x: Float): Float = canvasWidth - (x * canvasWidth / poseState.imageWidth)
+        fun scaleY(y: Float): Float = y * canvasHeight / poseState.imageHeight
 
-        fun scaleY(y: Float): Float {
-            return y * canvasHeight / poseState.imageHeight
-        }
-
-        fun drawBone(start: PoseLandmark?, end: PoseLandmark?, color: Color = Color.Cyan) {
-            // Малюємо лінію тільки якщо AI впевнений у цих точках більше ніж на 50%
-            if (start != null && end != null && start.inFrameLikelihood > 0.5f && end.inFrameLikelihood > 0.5f) {
+        fun drawBone(start: PoseLandmark?, end: PoseLandmark?, color: Color) {
+            // Знизили поріг малювання до 0.3, щоб скелет менше блимав
+            if (start != null && end != null && start.inFrameLikelihood > 0.3f && end.inFrameLikelihood > 0.3f) {
                 drawLine(
                     color = color,
                     start = Offset(scaleX(start.position.x), scaleY(start.position.y)),
@@ -152,36 +162,50 @@ fun DrawSkeleton(poseState: PoseState) {
             }
         }
 
-        // Отримуємо всі потрібні точки
         val leftShoulder = pose.getPoseLandmark(PoseLandmark.LEFT_SHOULDER)
         val rightShoulder = pose.getPoseLandmark(PoseLandmark.RIGHT_SHOULDER)
         val leftElbow = pose.getPoseLandmark(PoseLandmark.LEFT_ELBOW)
         val rightElbow = pose.getPoseLandmark(PoseLandmark.RIGHT_ELBOW)
         val leftWrist = pose.getPoseLandmark(PoseLandmark.LEFT_WRIST)
         val rightWrist = pose.getPoseLandmark(PoseLandmark.RIGHT_WRIST)
+
         val leftHip = pose.getPoseLandmark(PoseLandmark.LEFT_HIP)
         val rightHip = pose.getPoseLandmark(PoseLandmark.RIGHT_HIP)
+        val leftKnee = pose.getPoseLandmark(PoseLandmark.LEFT_KNEE)
+        val rightKnee = pose.getPoseLandmark(PoseLandmark.RIGHT_KNEE)
+        val leftAnkle = pose.getPoseLandmark(PoseLandmark.LEFT_ANKLE)
+        val rightAnkle = pose.getPoseLandmark(PoseLandmark.RIGHT_ANKLE)
 
-        // Малюємо руки
-        drawBone(leftShoulder, leftElbow, Color.Red) // Ліве плече -> лікоть
-        drawBone(leftElbow, leftWrist, Color.Red)    // Лівий лікоть -> зап'ястя
+        // Руки
+        drawBone(leftShoulder, leftElbow, Color.Red)
+        drawBone(leftElbow, leftWrist, Color.Red)
+        drawBone(rightShoulder, rightElbow, Color.Blue)
+        drawBone(rightElbow, rightWrist, Color.Blue)
 
-        drawBone(rightShoulder, rightElbow, Color.Blue) // Праве плече -> лікоть
-        drawBone(rightElbow, rightWrist, Color.Blue)    // Правий лікоть -> зап'ястя
+        // Корпус
+        drawBone(leftShoulder, rightShoulder, Color.Green)
+        drawBone(leftShoulder, leftHip, Color.Green)
+        drawBone(rightShoulder, rightHip, Color.Green)
+        drawBone(leftHip, rightHip, Color.Green)
 
-        // Малюємо тулуб
-        drawBone(leftShoulder, rightShoulder, Color.Green) // Між плечима
-        drawBone(leftShoulder, leftHip, Color.Green)       // Лівий бік
-        drawBone(rightShoulder, rightHip, Color.Green)     // Правий бік
-        drawBone(leftHip, rightHip, Color.Green)           // Між стегнами
+        // Ноги
+        drawBone(leftHip, leftKnee, Color.Yellow)
+        drawBone(leftKnee, leftAnkle, Color.Yellow)
+        drawBone(rightHip, rightKnee, Color.Magenta)
+        drawBone(rightKnee, rightAnkle, Color.Magenta)
     }
 }
 
 @Composable
-fun CameraPreview(onPushup: () -> Unit, onPoseDetected: (PoseState) -> Unit) {
+fun CameraPreview(zoomRatio: Float, onPushup: () -> Unit, onPoseDetected: (PoseState) -> Unit) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
+    val cameraControl = remember { mutableStateOf<CameraControl?>(null) }
+
+    LaunchedEffect(zoomRatio) {
+        cameraControl.value?.setZoomRatio(zoomRatio)
+    }
 
     AndroidView(
         factory = { ctx ->
@@ -201,7 +225,8 @@ fun CameraPreview(onPushup: () -> Unit, onPoseDetected: (PoseState) -> Unit) {
 
                 try {
                     cameraProvider.unbindAll()
-                    cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview, imageAnalysis)
+                    val camera = cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview, imageAnalysis)
+                    cameraControl.value = camera.cameraControl
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -229,44 +254,62 @@ class PushupAnalyzer(
         if (mediaImage != null) {
             val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
 
-            // Визначаємо правильні розміри зображення для масштабування (враховуючи поворот камери)
             val isPortrait = imageProxy.imageInfo.rotationDegrees == 90 || imageProxy.imageInfo.rotationDegrees == 270
             val imageWidth = if (isPortrait) imageProxy.height else imageProxy.width
             val imageHeight = if (isPortrait) imageProxy.width else imageProxy.height
 
             poseDetector.process(image)
                 .addOnSuccessListener { pose ->
-                    // Відправляємо скелет в інтерфейс для малювання
                     onPoseDetected(PoseState(pose, imageWidth, imageHeight))
 
+                    // Завантажуємо точки
                     val leftShoulder = pose.getPoseLandmark(PoseLandmark.LEFT_SHOULDER)
                     val leftElbow = pose.getPoseLandmark(PoseLandmark.LEFT_ELBOW)
                     val leftWrist = pose.getPoseLandmark(PoseLandmark.LEFT_WRIST)
+                    val leftHip = pose.getPoseLandmark(PoseLandmark.LEFT_HIP)
+                    val leftKnee = pose.getPoseLandmark(PoseLandmark.LEFT_KNEE)
+                    val leftAnkle = pose.getPoseLandmark(PoseLandmark.LEFT_ANKLE)
 
                     val rightShoulder = pose.getPoseLandmark(PoseLandmark.RIGHT_SHOULDER)
                     val rightElbow = pose.getPoseLandmark(PoseLandmark.RIGHT_ELBOW)
                     val rightWrist = pose.getPoseLandmark(PoseLandmark.RIGHT_WRIST)
+                    val rightHip = pose.getPoseLandmark(PoseLandmark.RIGHT_HIP)
+                    val rightKnee = pose.getPoseLandmark(PoseLandmark.RIGHT_KNEE)
+                    val rightAnkle = pose.getPoseLandmark(PoseLandmark.RIGHT_ANKLE)
 
-                    // Перевіряємо чи існують точки і чи камера в них впевнена (> 0.5)
-                    if (leftShoulder != null && leftElbow != null && leftWrist != null &&
-                        rightShoulder != null && rightElbow != null && rightWrist != null &&
-                        leftShoulder.inFrameLikelihood > 0.5f && leftWrist.inFrameLikelihood > 0.5f) {
+                    // Рахуємо сумарну "видимість" лівої та правої сторони
+                    val leftVisibility = (leftShoulder?.inFrameLikelihood ?: 0f) + (leftAnkle?.inFrameLikelihood ?: 0f)
+                    val rightVisibility = (rightShoulder?.inFrameLikelihood ?: 0f) + (rightAnkle?.inFrameLikelihood ?: 0f)
 
-                        // ПЕРЕВІРКА АНТИ-ЧІТ: Зап'ястя мають бути фізично нижче за плечі (більше значення по осі Y)
-                        // Це виключає накрутку, коли людина сидить і махає руками
-                        if (leftWrist.position.y > leftShoulder.position.y && rightWrist.position.y > rightShoulder.position.y) {
+                    // Обираємо ту сторону, яку краще видно камері (профіль)
+                    val useLeft = leftVisibility > rightVisibility
 
-                            val leftAngle = getAngle(leftShoulder, leftElbow, leftWrist)
-                            val rightAngle = getAngle(rightShoulder, rightElbow, rightWrist)
+                    val shoulder = if (useLeft) leftShoulder else rightShoulder
+                    val elbow = if (useLeft) leftElbow else rightElbow
+                    val wrist = if (useLeft) leftWrist else rightWrist
+                    val hip = if (useLeft) leftHip else rightHip
+                    val knee = if (useLeft) leftKnee else rightKnee
+                    val ankle = if (useLeft) leftAnkle else rightAnkle
 
-                            // Нижня точка віджимання (пом'якшено до 110 через перспективу з підлоги)
-                            if (leftAngle < 110 && rightAngle < 110) {
+                    // Працюємо тільки з обраною стороною. Поріг для ніг знижено до 0.3
+                    if (shoulder != null && elbow != null && wrist != null && hip != null && knee != null && ankle != null &&
+                        shoulder.inFrameLikelihood > 0.5f && ankle.inFrameLikelihood > 0.3f) {
+
+                        val torsoYDiff = abs(shoulder.position.y - hip.position.y)
+                        val torsoXDiff = abs(shoulder.position.x - hip.position.x)
+
+                        val kneeAngle = getAngle(hip, knee, ankle)
+                        val armAngle = getAngle(shoulder, elbow, wrist)
+
+                        // torsoXDiff > torsoYDiff означає, що людина лежить (розтягнута по горизонталі), а не стоїть
+                        if (kneeAngle > 140 && torsoYDiff < torsoXDiff * 1.5) {
+
+                            if (armAngle < 110) {
                                 isDown = true
                             }
-                            // Верхня точка (випрямлення рук, пом'якшено до 140)
-                            else if (leftAngle > 140 && rightAngle > 140 && isDown) {
+                            else if (armAngle > 140 && isDown) {
                                 val currentTime = System.currentTimeMillis()
-                                if (currentTime - lastPushupTime > 1000) { // 1 секунда між віджиманнями мінімум
+                                if (currentTime - lastPushupTime > 1000) {
                                     isDown = false
                                     lastPushupTime = currentTime
                                     onPushupCompleted()

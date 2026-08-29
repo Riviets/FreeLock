@@ -32,7 +32,10 @@
             </intent-filter>
         </activity>
         <activity android:name=".LockActivity" android:exported="false" />
-        <activity android:name=".CameraActivity" android:exported="false" />
+        <activity
+            android:name=".CameraActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
         <service
             android:name=".AppBlockerService"
             android:exported="false"
