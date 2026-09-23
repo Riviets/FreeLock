@@ -57,7 +57,7 @@ fun MainScreen() {
     var searchQuery by remember { mutableStateOf("") }
     val timeOptions = listOf(0.1f, 0.25f, 0.5f, 1f)
 
-    // Автоматичне оновлення балансу, коли екран стає активним (наприклад, після камери)
+    // Автоматичне оновлення балансу при поверненні на головний екран
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -72,22 +72,31 @@ fun MainScreen() {
 
     Column(modifier = Modifier.fillMaxSize().systemBarsPadding().padding(16.dp)) {
 
-        // Блок балансу та тестової навігації
-        // Блок балансу та навігації до камери
+        // Картка інформації
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(text = "Доступний баланс: $balance сек", style = MaterialTheme.typography.headlineSmall)
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Змінена кнопка: тепер вона веде одразу до віджимань
-                Button(onClick = {
-                    val intent = Intent(context, CameraActivity::class.java)
-                    context.startActivity(intent)
-                }) {
-                    Text("Збільшити баланс (Камера)")
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    // Перехід до камери
+                    Button(onClick = {
+                        val intent = Intent(context, CameraActivity::class.java)
+                        context.startActivity(intent)
+                    }) {
+                        Text("Заробити")
+                    }
+
+                    // Перехід до екрану синхронізації
+                    Button(onClick = {
+                        val intent = Intent(context, SyncActivity::class.java)
+                        context.startActivity(intent)
+                    }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) {
+                        Text("Профіль (Хмара)")
+                    }
                 }
             }
         }

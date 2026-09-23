@@ -40,6 +40,7 @@
             android:name=".AppBlockerService"
             android:exported="false"
             android:foregroundServiceType="specialUse" />
+        <activity android:name=".SyncActivity" android:exported="false" />
     </application>
 
 </manifest>
