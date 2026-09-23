@@ -24,7 +24,6 @@ interface FreeLockApi {
 }
 
 object RetrofitClient {
-    // Заміни на посилання, яке видасть Render.com
     private const val BASE_URL = "https://freelock-api-server.onrender.com/"
 
     val api: FreeLockApi by lazy {
