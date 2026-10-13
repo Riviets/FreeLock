@@ -1,4 +1,4 @@
-package com.riviets.freelock // ПЕРЕВІР СВІЙ ПАКЕТ!
+package com.riviets.freelock
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -87,7 +87,6 @@ fun CameraScreen(onExit: () -> Unit) {
                 DrawSkeleton(poseState)
             }
 
-            // Інтерфейс лічильника (змістив трохи вліво для горизонтального режиму)
             Column(
                 modifier = Modifier.align(Alignment.TopStart).padding(32.dp),
                 horizontalAlignment = Alignment.Start
@@ -104,7 +103,6 @@ fun CameraScreen(onExit: () -> Unit) {
                 )
             }
 
-            // Блок управління зумом (праворуч)
             Column(
                 modifier = Modifier.align(Alignment.CenterEnd).padding(end = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -150,7 +148,6 @@ fun DrawSkeleton(poseState: PoseState) {
         fun scaleY(y: Float): Float = y * canvasHeight / poseState.imageHeight
 
         fun drawBone(start: PoseLandmark?, end: PoseLandmark?, color: Color) {
-            // Знизили поріг малювання до 0.3, щоб скелет менше блимав
             if (start != null && end != null && start.inFrameLikelihood > 0.3f && end.inFrameLikelihood > 0.3f) {
                 drawLine(
                     color = color,
@@ -176,19 +173,16 @@ fun DrawSkeleton(poseState: PoseState) {
         val leftAnkle = pose.getPoseLandmark(PoseLandmark.LEFT_ANKLE)
         val rightAnkle = pose.getPoseLandmark(PoseLandmark.RIGHT_ANKLE)
 
-        // Руки
         drawBone(leftShoulder, leftElbow, Color.Red)
         drawBone(leftElbow, leftWrist, Color.Red)
         drawBone(rightShoulder, rightElbow, Color.Blue)
         drawBone(rightElbow, rightWrist, Color.Blue)
 
-        // Корпус
         drawBone(leftShoulder, rightShoulder, Color.Green)
         drawBone(leftShoulder, leftHip, Color.Green)
         drawBone(rightShoulder, rightHip, Color.Green)
         drawBone(leftHip, rightHip, Color.Green)
 
-        // Ноги
         drawBone(leftHip, leftKnee, Color.Yellow)
         drawBone(leftKnee, leftAnkle, Color.Yellow)
         drawBone(rightHip, rightKnee, Color.Magenta)
@@ -262,7 +256,6 @@ class PushupAnalyzer(
                 .addOnSuccessListener { pose ->
                     onPoseDetected(PoseState(pose, imageWidth, imageHeight))
 
-                    // Завантажуємо точки
                     val leftShoulder = pose.getPoseLandmark(PoseLandmark.LEFT_SHOULDER)
                     val leftElbow = pose.getPoseLandmark(PoseLandmark.LEFT_ELBOW)
                     val leftWrist = pose.getPoseLandmark(PoseLandmark.LEFT_WRIST)
@@ -277,11 +270,9 @@ class PushupAnalyzer(
                     val rightKnee = pose.getPoseLandmark(PoseLandmark.RIGHT_KNEE)
                     val rightAnkle = pose.getPoseLandmark(PoseLandmark.RIGHT_ANKLE)
 
-                    // Рахуємо сумарну "видимість" лівої та правої сторони
                     val leftVisibility = (leftShoulder?.inFrameLikelihood ?: 0f) + (leftAnkle?.inFrameLikelihood ?: 0f)
                     val rightVisibility = (rightShoulder?.inFrameLikelihood ?: 0f) + (rightAnkle?.inFrameLikelihood ?: 0f)
 
-                    // Обираємо ту сторону, яку краще видно камері (профіль)
                     val useLeft = leftVisibility > rightVisibility
 
                     val shoulder = if (useLeft) leftShoulder else rightShoulder
@@ -291,7 +282,6 @@ class PushupAnalyzer(
                     val knee = if (useLeft) leftKnee else rightKnee
                     val ankle = if (useLeft) leftAnkle else rightAnkle
 
-                    // Працюємо тільки з обраною стороною. Поріг для ніг знижено до 0.3
                     if (shoulder != null && elbow != null && wrist != null && hip != null && knee != null && ankle != null &&
                         shoulder.inFrameLikelihood > 0.5f && ankle.inFrameLikelihood > 0.3f) {
 
@@ -301,7 +291,6 @@ class PushupAnalyzer(
                         val kneeAngle = getAngle(hip, knee, ankle)
                         val armAngle = getAngle(shoulder, elbow, wrist)
 
-                        // torsoXDiff > torsoYDiff означає, що людина лежить (розтягнута по горизонталі), а не стоїть
                         if (kneeAngle > 140 && torsoYDiff < torsoXDiff * 1.5) {
 
                             if (armAngle < 110) {
