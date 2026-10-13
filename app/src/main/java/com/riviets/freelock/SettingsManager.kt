@@ -25,10 +25,9 @@ class SettingsManager(context: Context) {
     }
 
     fun getUnlockTime(): Float {
-        return prefs.getFloat("unlock_time_mins", 1f) // За замовчуванням 1 хвилина
+        return prefs.getFloat("unlock_time_mins", 1f) 
     }
 
-    // Додай ці методи всередину класу SettingsManager
     fun addEarnedTime(seconds: Long) {
         val current = getEarnedTime()
         prefs.edit().putLong("earned_time_seconds", current + seconds).apply()
@@ -44,7 +43,7 @@ class SettingsManager(context: Context) {
     }
 
     fun getEarnedTime(): Long {
-        return prefs.getLong("earned_time_seconds", 0L) // Баланс 0 за замовчуванням
+        return prefs.getLong("earned_time_seconds", 0L) 
     }
 }
 
@@ -52,7 +51,6 @@ fun getInstalledApps(context: Context, settings: SettingsManager): List<AppInfo>
     val pm = context.packageManager
     val blockedApps = settings.getBlockedApps()
 
-    // Отримуємо всі додатки, які можна запустити (і виключаємо сам наш додаток)
     return pm.getInstalledApplications(PackageManager.GET_META_DATA)
         .filter { pm.getLaunchIntentForPackage(it.packageName) != null && it.packageName != context.packageName }
         .map {
