@@ -46,7 +46,6 @@ fun CloudSyncScreen(onBack: () -> Unit) {
                     coroutineScope.launch {
                         isLoading = true
                         try {
-                            // Отримуємо актуальний статус з сервера
                             val status = RetrofitClient.api.getUserStatus(userId)
                             cloudBalance = status.balance
                             isOnline = true
