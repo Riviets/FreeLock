@@ -57,7 +57,6 @@ fun MainScreen() {
     var searchQuery by remember { mutableStateOf("") }
     val timeOptions = listOf(0.1f, 0.25f, 0.5f, 1f)
 
-    // Автоматичне оновлення балансу при поверненні на головний екран
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -72,7 +71,6 @@ fun MainScreen() {
 
     Column(modifier = Modifier.fillMaxSize().systemBarsPadding().padding(16.dp)) {
 
-        // Картка інформації
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
@@ -82,7 +80,6 @@ fun MainScreen() {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    // Перехід до камери
                     Button(onClick = {
                         val intent = Intent(context, CameraActivity::class.java)
                         context.startActivity(intent)
@@ -90,7 +87,6 @@ fun MainScreen() {
                         Text("Заробити")
                     }
 
-                    // Перехід до екрану синхронізації
                     Button(onClick = {
                         val intent = Intent(context, SyncActivity::class.java)
                         context.startActivity(intent)
