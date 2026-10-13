@@ -69,7 +69,6 @@ class AppBlockerService : Service() {
                     val isTemporarilyUnlocked = (topApp == temporarilyUnlockedApp && currentTime < unlockedUntil)
 
                     if (!isTemporarilyUnlocked) {
-                        // Якщо час щойно вийшов
                         if (topApp == temporarilyUnlockedApp && currentTime >= unlockedUntil) {
                             temporarilyUnlockedApp = null
                             unlockedUntil = 0L
@@ -83,7 +82,6 @@ class AppBlockerService : Service() {
                             withContext(Dispatchers.Main) {
                                 val intent = Intent(this@AppBlockerService, LockActivity::class.java).apply {
                                     putExtra("BLOCKED_PACKAGE", topApp)
-                                    // Обов'язкові прапорці для перехоплення з фону
                                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                                 }
                                 startActivity(intent)
